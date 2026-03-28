@@ -109,7 +109,7 @@ ipcMain.handle(SHELL_OPCODE.TRASH_ITEM, async (event, ...args) => {
 app.disableHardwareAcceleration()
 
 
-const REDIRECT_URI_PREFIX = 'https://login.microsoftonline.com/common/oauth2/nativeclient'
+const REDIRECT_URI_PREFIX = 'https://login.microsoftonline.com/common/oauth2/nativeclient?'
 
 // Microsoft Auth Login
 let msftAuthWindow
@@ -145,12 +145,21 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGIN, (ipcEvent, ...arguments_) => {
 
     msftAuthWindow.webContents.on('did-navigate', (_, uri) => {
         if (uri.startsWith(REDIRECT_URI_PREFIX)) {
-            let queries = uri.substring(REDIRECT_URI_PREFIX.length).split('#', 1).toString().split('&')
+            // Extract query string from URI and remove fragment if present
+            let queryString = uri.substring(REDIRECT_URI_PREFIX.length).split('#')[0]
+            let queries = queryString.split('&')
             let queryMap = {}
 
             queries.forEach(query => {
                 const [name, value] = query.split('=')
-                queryMap[name] = decodeURI(value)
+                if (name && value) {
+                    try {
+                        queryMap[name] = decodeURIComponent(value)
+                    } catch (e) {
+                        // If decoding fails, use the raw value
+                        queryMap[name] = value
+                    }
+                }
             })
 
             ipcEvent.reply(MSFT_OPCODE.REPLY_LOGIN, MSFT_REPLY_TYPE.SUCCESS, queryMap, msftAuthViewSuccess)
